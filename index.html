@@ -1,0 +1,1248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MEX SITE - Operations & Asset Health Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .kpi-card, .nav-btn { transition: all 0.2s ease-in-out; }
+        .kpi-card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05); }
+        /* active nav styling handled by assets/css/styles.css */
+        /* .nav-btn.active { background-color: #2563eb; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); } */
+        /* availability bar color handled by assets/css/styles.css */
+        /* .availability-bar-bg { background-color: #e5e7eb; } */
+        .availability-item { cursor: pointer; transition: background-color 0.2s; }
+        .availability-item:hover { background-color: #f3f4f6; }
+        /* Modal Styles */
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.6); }
+        .modal-content { background-color: #f9fafb; margin: 10% auto; padding: 25px; border-radius: 8px; width: 90%; max-width: 700px; position: relative; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+        .close-btn { color: #aaa; position: absolute; top: 10px; right: 20px; font-size: 30px; font-weight: bold; cursor: pointer; }
+        
+        /* Enhanced UI Styles */
+        .stagger-group { opacity: 0; animation: fadeInUp 0.6s ease-out forwards; }
+        .stagger-item { opacity: 0; transform: translateY(20px); animation: staggerIn 0.6s ease-out forwards; }
+        .stagger-item:nth-child(1) { animation-delay: 0.1s; }
+        .stagger-item:nth-child(2) { animation-delay: 0.2s; }
+        .stagger-item:nth-child(3) { animation-delay: 0.3s; }
+        .stagger-item:nth-child(4) { animation-delay: 0.4s; }
+        
+        .animate-on-scroll { opacity: 0; transform: translateY(30px); transition: all 0.6s ease-out; }
+        .animate-on-scroll.bounce-in { animation: bounceIn 0.8s ease-out forwards; }
+        .animate-on-scroll.slide-up { animation: slideUp 0.6s ease-out forwards; }
+        
+        .page-transition { transition: all 0.3s ease-in-out; }
+        
+        /* Geometric Shapes Animation */
+        .geometric-shapes { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: -1; overflow: hidden; }
+        .floating-geometric { position: absolute; width: 40px; height: 40px; border: 2px solid rgba(59, 130, 246, 0.3); border-radius: 50%; animation: geometricFloat 20s ease-in-out infinite alternate; }
+        .animated-line { position: absolute; width: 100px; height: 2px; background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.3), transparent); animation: lineFlow 15s linear infinite; }
+        
+        @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
+        @keyframes staggerIn { to { opacity: 1; transform: translateY(0); } }
+        @keyframes bounceIn { 
+            0% { opacity: 0; transform: scale(0.3) translateY(30px); }
+            50% { opacity: 1; transform: scale(1.05) translateY(0); }
+            70% { transform: scale(0.9) translateY(0); }
+            100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes slideUp { to { opacity: 1; transform: translateY(0); } }
+        @keyframes geometricFloat { 
+            0% { transform: translateY(0px) rotate(0deg); opacity: 0.3; }
+            100% { transform: translateY(-100px) rotate(360deg); opacity: 0.7; }
+        }
+        @keyframes lineFlow { 
+            0% { transform: translateX(-100px) rotate(0deg); opacity: 0; }
+            50% { opacity: 0.5; }
+            100% { transform: translateX(calc(100vw + 100px)) rotate(360deg); opacity: 0; }
+        }
+        
+        /* History Panel Styles */
+        .search { display: flex; align-items: center; background: #f3f4f6; border-radius: 8px; padding: 8px 12px; gap: 8px; }
+        .search svg { color: #6b7280; }
+        .btn.primary { background: #3b82f6; color: white; padding: 8px 16px; border-radius: 6px; font-weight: 500; border: none; cursor: pointer; transition: background-color 0.2s; }
+        .btn.primary:hover { background: #2563eb; }
+        
+        /* Modal Form Styles */
+        .modal-form { space-y: 4; }
+        .radio-group { space-y: 3; }
+        .radio-option { display: flex; align-items: center; gap: 8px; padding: 8px 0; }
+        .radio-option input[type="radio"] { margin: 0; }
+        .form-group { margin-top: 8px; }
+        .form-group input { width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px; }
+        .actions { display: flex; gap: 12px; margin-top: 20px; justify-content: flex-end; }
+        .btn.cancel-delete { background: #6b7280; color: white; padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; }
+        .btn.confirm-delete { background: #ef4444; color: white; padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; }
+        
+        /* Ensure hidden class works */
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+    <div class="container mx-auto p-4 md:p-6">
+        
+        <header class="mb-6 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-4">
+                <div class="flex flex-col gap-2">
+                    <img src="logo.png" alt="SOULINTEC Logo" class="h-auto w-auto">
+                    <img src="logo2.png" alt="SOULINTEC Logo 2" class="h-10 w-auto">
+                </div>
+                <div class="text-center sm:text-left pl-2">
+                    <h1 class="text-2xl md:text-3xl font-bold text-gray-900 mb-1">MEX SITE</h1>
+                    <p class="text-sm text-gray-600 mb-2">Operations & Asset Health</p>
+                    <h2 class="text-base md:text-lg font-semibold text-gray-700">Real-time maintenance and failure repair overview.</h2>
+                </div>
+            </div>
+            <div class="flex flex-wrap justify-center items-center gap-2">
+                <div class="flex items-center gap-2 bg-white px-3 py-1.5 rounded-md border">
+                    <label for="running-hours" class="text-sm font-medium text-gray-700">Daily Hours:</label>
+                    <input type="number" id="running-hours" value="12" min="1" max="24" class="w-16 text-center font-bold border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <button id="manage-pm-btn" class="header-btn bg-purple-600 text-white font-bold py-2 px-4 rounded-md hover:bg-purple-700 text-sm">Manage PMs</button>
+                <button id="reset-data-btn" class="header-btn bg-yellow-500 text-white font-bold py-2 px-4 rounded-md hover:bg-yellow-600 text-sm">Reset Indicators</button>
+                <button id="import-csv-btn" class="header-btn bg-blue-600 text-white font-bold py-2 px-4 rounded-md hover:bg-blue-700 text-sm">Import CSV</button>
+                <input type="file" id="csv-file-input" class="hidden" accept=".csv">
+                <button id="export-csv-btn" class="header-btn bg-gray-700 text-white font-bold py-2 px-4 rounded-md hover:bg-gray-800 text-sm">Export CSV</button>
+                <button id="generate-report-btn" class="header-btn bg-green-600 text-white font-bold py-2 px-4 rounded-md hover:bg-green-700 text-sm">Generate Report</button>
+            </div>
+            <div class="flex items-center gap-2">
+                <button id="themeToggle" class="btn flex items-center gap-2 px-3 py-2 rounded-md">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="36" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="18.36"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+                    <span>Toggle Theme</span>
+                </button>
+            </div>
+        </header>
+
+        <nav class="bg-white rounded-lg shadow-md p-2 mb-6 flex flex-wrap justify-center gap-2 text-sm">
+            <button class="nav-btn active font-medium rounded-md text-gray-700" data-target="overview">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg>
+                Overview
+            </button>
+            <button class="nav-btn font-medium rounded-md text-gray-700" data-target="automated-warehouse">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                Warehouse
+            </button>
+            <button class="nav-btn font-medium rounded-md text-gray-700" data-target="blending">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"></path></svg>
+                Blending (ABB/ILB)
+            </button>
+            <button class="nav-btn font-medium rounded-md text-gray-700" data-target="filling-lines">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+                Filling Piggable Lines
+            </button>
+            <button class="nav-btn font-medium rounded-md text-gray-700" data-target="bulk-lines">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
+                Bulk Piggable Line
+            </button>
+            <button class="nav-btn font-medium rounded-md text-gray-700" data-target="atg">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                ATG System
+            </button>
+            <button class="nav-btn font-medium rounded-md text-gray-700" data-target="ilgmu">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v16"></path><path d="M3 7h18"></path><path d="M8 21h8"></path><path d="M12 12v4"></path><path d="M8 12h8"></path></svg>
+                ILGMU System
+            </button>
+            <button class="nav-btn font-medium rounded-md text-gray-700" data-target="cgu">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09A1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                CGU Section
+            </button>
+            <button class="nav-btn font-medium rounded-md text-gray-700" data-target="history">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                History
+            </button>
+        </nav>
+
+        <main id="dashboard-content">
+            <section id="overview" class="dashboard-section space-y-6">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 stagger-group">
+                    <div class="kpi-card p-6 rounded-lg text-center stagger-item animate-on-scroll bounce-in">
+                        <h3 class="text-lg font-semibold text-gray-500">OEE</h3>
+                        <p id="kpi-oee" class="text-5xl font-bold text-blue-600 mt-2">--%</p>
+                        <div class="kpi-icon mt-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-500 opacity-70"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                        </div>
+                    </div>
+                    <div class="kpi-card p-6 rounded-lg text-center stagger-item animate-on-scroll bounce-in">
+                        <h3 class="text-lg font-semibold text-gray-500">Critical Work Orders</h3>
+                        <p id="critical-wo-kpi" class="text-5xl font-bold text-red-500 mt-2">0</p>
+                        <div class="kpi-icon mt-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-red-500 opacity-70"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                        </div>
+                    </div>
+                    <div class="kpi-card p-6 rounded-lg text-center stagger-item animate-on-scroll bounce-in">
+                        <h3 class="text-lg font-semibold text-gray-500">PM Compliance</h3>
+                        <p id="kpi-pm" class="text-5xl font-bold text-green-500 mt-2">98%</p>
+                        <div class="kpi-icon mt-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-green-500 opacity-70"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                        </div>
+                    </div>
+                    <div class="kpi-card p-6 rounded-lg text-center stagger-item animate-on-scroll bounce-in">
+                        <h3 class="text-lg font-semibold text-gray-500">Days Since LTI</h3>
+                        <p id="kpi-lti" class="text-5xl font-bold text-yellow-500 mt-2">254</p>
+                        <div class="kpi-icon mt-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-yellow-500 opacity-70"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-xl font-semibold mb-4">Live Critical Work Orders</h3>
+                    <div class="overflow-x-auto"><table class="w-full text-left"><thead class="bg-gray-100"><tr><th class="p-3">WO#</th><th class="p-3">Priority</th><th class="p-3">Equipment</th><th class="p-3">Section</th><th class="p-3">Description</th><th class="p-3">Start Time</th><th class="p-3">Finish Time</th><th class="p-3">Status</th></tr></thead><tbody id="critical-wo-table"></tbody></table></div>
+                </div>
+            </section>
+            
+            <!-- History Section -->
+            <section id="history" class="dashboard-section space-y-6 hidden">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-2xl font-bold text-gray-900">History</h2>
+                    <div class="flex gap-2">
+                        <div class="search">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
+                            </svg>
+                            <input type="text" placeholder="Search reports..." class="border-0 bg-transparent outline-none text-sm">
+                        </div>
+                        <button class="btn primary">New Report</button>
+                    </div>
+                </div>
+                <div id="history-list" class="stagger-group">
+                    <!-- History cards will be dynamically populated by JavaScript -->
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <div id="component-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeComponentModal()">&times;</span>
+            <h2 id="modal-title" class="text-2xl font-bold mb-4">Components</h2>
+            <div id="modal-component-list" class="space-y-3 max-h-96 overflow-y-auto"></div>
+        </div>
+    </div>
+
+    <div id="edit-components-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeEditModal()">&times;</span>
+            <h2 id="edit-modal-title" class="text-2xl font-bold mb-4">Edit Components</h2>
+            <div id="edit-modal-list" class="space-y-2 mb-4 max-h-80 overflow-y-auto"></div>
+            <div class="flex gap-2">
+                <input type="text" id="new-component-name" placeholder="New component name" class="flex-grow w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                <button id="add-component-btn" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-md hover:bg-blue-700">Add</button>
+            </div>
+            <button id="save-components-btn" class="w-full bg-green-600 text-white font-bold py-2 px-4 rounded-md hover:bg-green-700 mt-4">Save Changes</button>
+        </div>
+    </div>
+
+    <div id="pm-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closePmModal()">&times;</span>
+            <h2 class="text-2xl font-bold mb-4">Preventive Maintenance Schedule</h2>
+            <div id="pm-task-list" class="space-y-3 mb-4 max-h-80 overflow-y-auto"></div>
+            <button id="save-pm-btn" class="w-full bg-green-600 text-white font-bold py-2 px-4 rounded-md hover:bg-green-700 mt-4">Save Changes</button>
+        </div>
+    </div>
+
+    <script>
+        // Theme: init from localStorage or prefers-color-scheme
+        (function(){
+            const stored = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const theme = stored || (prefersDark ? 'dark' : 'light');
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+        document.getElementById('themeToggle')?.addEventListener('click', () => {
+            const root = document.documentElement;
+            const current = root.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+            const next = current === 'dark' ? 'light' : 'dark';
+            root.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+        });
+    </script>
+
+    <!-- Delete Report Confirmation Modal -->
+    <div id="delete-report-modal" class="modal">
+        <div class="modal-content">
+            <h3 class="text-lg font-semibold mb-4">Delete Report</h3>
+            <p class="text-muted mb-4">Please provide a reason for deleting this report:</p>
+            
+            <form class="modal-form">
+                <div class="radio-group">
+                    <div class="radio-option">
+                        <input type="radio" id="delete-reason-mistake" name="delete-reason" value="mistake">
+                        <label for="delete-reason-mistake">Deleted by mistake</label>
+                    </div>
+                    
+                    <div class="radio-option">
+                        <input type="radio" id="delete-reason-duplicate" name="delete-reason" value="duplicate">
+                        <label for="delete-reason-duplicate">Duplicate report</label>
+                    </div>
+                    
+                    <div class="radio-option">
+                        <input type="radio" id="delete-reason-irrelevant" name="delete-reason" value="irrelevant">
+                        <label for="delete-reason-irrelevant">Irrelevant data</label>
+                    </div>
+                    
+                    <div class="radio-option">
+                        <input type="radio" id="delete-reason-other" name="delete-reason" value="other">
+                        <label for="delete-reason-other">Other</label>
+                    </div>
+                    
+                    <div class="form-group" id="delete-reason-other-container" style="display: none;">
+                        <input type="text" id="delete-reason-other-input" placeholder="Please specify..." class="mt-2">
+                    </div>
+                </div>
+                
+                <div class="actions">
+                    <button type="button" class="btn cancel-delete">Cancel</button>
+                    <button type="submit" class="btn primary confirm-delete">Confirm Delete</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Helper function to create section HTML templates
+        function createSectionHTML(sectionKey, title) {
+            const container = document.getElementById('dashboard-content');
+            const html = `
+                <section id="${sectionKey}" class="dashboard-section space-y-6 hidden">
+                    <h2 class="text-2xl font-bold text-gray-900">${title}</h2>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="bg-white p-6 rounded-lg shadow-md">
+                            <h3 class="text-xl font-semibold mb-4">Subsection Availability</h3>
+                            <div id="${sectionKey}-availability-grid" class="space-y-3"></div>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg shadow-md">
+                            <h3 class="text-xl font-semibold mb-4">Log New Work Order</h3>
+                            <form id="${sectionKey}-form" class="space-y-4">
+                                <div>
+                                    <label for="${sectionKey}-eq" class="block text-sm font-medium text-gray-700">Faulted Equipment</label>
+                                    <select id="${sectionKey}-eq" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                        <option value="">Select a component...</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="${sectionKey}-desc" class="block text-sm font-medium text-gray-700">Description</label>
+                                    <textarea id="${sectionKey}-desc" rows="3" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm"></textarea>
+                                </div>
+                                <div>
+                                    <label for="${sectionKey}-priority" class="block text-sm font-medium text-gray-700">Priority</label>
+                                    <select id="${sectionKey}-priority" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm">
+                                        <option>Medium</option><option>High</option><option>Emergency</option>
+                                    </select>
+                                </div>
+                                <button type="submit" class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-md hover:bg-blue-700">Submit Work Order</button>
+                            </form>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <h3 class="text-xl font-semibold mb-4">Active Work Orders</h3>
+                        <div class="overflow-x-auto"><table class="w-full text-left" id="${sectionKey}-wo-table"></table></div>
+                    </div>
+                </section>
+            `;
+            container.insertAdjacentHTML('beforeend', html);
+        }
+
+        document.addEventListener('DOMContentLoaded', function main() {
+
+            // #region DATA STORE
+            const OEE_PERFORMANCE = 0.95;
+            const OEE_QUALITY = 0.99;
+            let currentView = 'overview';
+            let dailyRunningMinutes = 720;
+
+            function getDefaultPMs() {
+                return [
+                    { sectionKey: 'automated-warehouse', equipment: 'Elevator B1', description: 'Weekly Lubrication and Inspection', status: 'Done' },
+                    { sectionKey: 'automated-warehouse', equipment: 'Stretch Wrapping M/C 1', description: 'Monthly Sensor Cleaning', status: 'Done' },
+                    { sectionKey: 'blending', equipment: 'Blending Vessel V-401', description: 'Quarterly Seal Check', status: 'Done' },
+                    { sectionKey: 'blending', equipment: 'In-Line Blender (ILB)', description: 'Bi-Weekly Filter Replacement', status: 'Done' },
+                    { sectionKey: 'filling-lines', equipment: '1 Liter M/C Line HLDV1', description: 'Monthly Valve Actuator Test', status: 'Done' },
+                    { sectionKey: 'bulk-lines', equipment: 'C1 Line HLDV2', description: 'Monthly Valve Actuator Test', status: 'Done' },
+                ];
+            }
+
+            const plantStructure = {
+                'automated-warehouse': { name: 'Warehouse', subsections: { 'Servers & Workstations': ['Server', 'Backup Server', 'Engineering Station', '1L M/C Filling WS', '4L M/C Filling WS', '20L M/C Filling WS', 'Manual Input WS', 'Loading WS'], 'Conveyor A': ['Input Conveyor A', ...Array.from({ length: 11 }, (_, i) => `Conveyor A${i + 1}`)], 'Elevator B1': ['Elevator B1'], 'Conveyor C': ['Distribution Conveyor C', ...Array.from({ length: 7 }, (_, i) => `Conveyor C${i + 1}`)], 'STK1': ['Input Conveyor E1-E2', 'Output Conveyor E3-E4'], 'STK2': ['Input Conveyor D1-D2', 'Output Conveyor D3-D4'], 'Shuttle Car F1': ['Shuttle Car Conveyor F1'], 'Kirby Conveyor K': ['Kirby Conveyor', ...Array.from({ length: 11 }, (_, i) => `Conveyor K${i + 1}`)], 'Output Systems': ['Direct Output Conveyor', 'Stretch Wrapping M/C 1', 'Stretch Wrapping M/C 2', 'Stretch Wrapping M/C 3'] }},
+                'blending': { name: 'Blending (ABB/ILB)', subsections: { 'Servers & ES': ['Server', 'Backup Server', 'Engineering Station', 'ABB Control System'], 'Blending Vessel V-401': ['Blending Vessel V-401', ...Array.from({length: 18}, (_, i) => `Flow Control Valve 2${(i+1).toString().padStart(2,'0')}`), 'Temperature Transmitter 201'], 'Dosing Vessel V-402': ['Dosing Vessel V-402', ...Array.from({length: 28}, (_, i) => `Flow Control Valve 3${(i+1).toString().padStart(2,'0')}`), 'Temperature Transmitter 310'], 'Piggable Manifold': ['High Level Diverter Valve (HLVD)', ...Array.from({length: 11}, (_, i) => `K${i+1} In-Line Diverter Valve (ILDV)`), 'K12 High Level Diverter Valve (HLDV)'], 'Meters': ['Mobil 1 Meter', 'Batch Blending Meter', 'In-Tank Meter'], 'ILB Skids': ['In-Line Blender (ILB)', 'POV 101A/B/C/D', 'Temperature Transmitter 101', 'Flow Transmitter 101', 'Flow Control Valve 101', 'POV 102A/B/C/D', 'Temperature Transmitter 102', 'Flow Transmitter 102', 'Flow Control Valve 102', 'POV 103A/B/C/D', 'Temperature Transmitter 103', 'Flow Transmitter 103', 'Flow Control Valve 103', 'POV 104A/B/C/D', 'Temperature Transmitter 104', 'Flow Transmitter 104', 'Flow Control Valve 104', 'POV 105A/B/C', 'Temperature Transmitter 105', 'Flow Transmitter 105', 'Flow Control Valve 105', 'POV 106A', 'Flow Transmitter 106', 'Flow Control Valve 106', 'POV 107A', 'Flow Transmitter 107', 'Flow Control Valve 107'] }},
+                'filling-lines': { name: 'Filling Piggable Lines', subsections: { '1 Liter M/C Line': ['HLDV1', 'HLDV2'], '4 Liter M/C Line': ['HLDV1', 'HLDV2'], '20 Liter M/C Line': ['HLDV1', 'HLDV2'], 'Old Drum M/C Line': ['HLDV1', 'HLDV2'], 'New Drum M/C Line': ['HLDV1', 'HLDV2'], 'Mobil1 Line': ['HLDV1', 'HLDV2'] }},
+                'bulk-lines': { name: 'Bulk Piggable Line', subsections: { 'C1 Line': ['HLDV1', 'HLDV2'], 'C2 Line': ['HLDV1', 'HLDV2'], 'C4 Line': ['HLDV1', 'HLDV2'], 'C5 Line': ['HLDV1', 'HLDV2'], 'C6 Line': ['HLDV1', 'HLDV2'], 'C7 Line': ['HLDV1', 'HLDV2'] }},
+                'atg': { name: 'ATG System', subsections: { 'ATG Server': ['ATG Server'], 'Tanks': ['ATG Tank-1', 'ATG Tank-2', ...Array.from({ length: 20 }, (_, i) => `ATG Tank-${i+21}`)] } },
+                'ilgmu': { name: 'ILGMU System', subsections: { 'Servers & ES': ['ILGMU Server', 'ILGMU ES', 'ILGMU Skid'], 'LOOP 1': ['Flow Transmitter 5101','Pressure Indicator 5101','Flow Transmitter 5102','Pressure Indicator 5102','Flow Transmitter 5103A/B/C','Flow Control Valve 5103A/B/C','Pressure Indicator 5103A/B/C','VFD-G60','VFD-G62','Solenoid Valve 5105','Solenoid Valve 5106','Motor 5110','Exchanger 5101','Pressure Differential Indicator 5104','Temperature Valve 5103','Pressure Indicator 5104A/B','Temperature Transmitter 5103'], 'Reactor Section': ['Agitator G-5101','Pressure Indicator 5105','Temperature Transmitter 5101','Temperature Valve 5101','Pressure Transmitter 5106','Pressure Indicator 5106','Pressure Valve 5106','Exchanger 5102','Temperature Valve 5201','Temperature Transmitter 5201','Pressure Differential Indicator 5201','Pressure Indicator 5201A/B','Pressure Transmitter 5209','Pressure Indicator 5209','Pressure Valve 5209'], 'Flash Chamber': ['Agitator G-5102','Motor 5102','Pressure Indicator 5209','Pressure Transmitter 5204','Pressure Indicator 5204','Pressure Valve 5204','Level Transmitter 5201','Pressure Valve 5203','Pressure Transmitter 5203','Pressure Indicator 5203','Temperature Transmitter 5202','Temperature Transmitter 5203','Flow Control Valve 5103','Solenoid Valve 5210','Pressure Indicator 5206','Pressure Indicator 5208'], 'LOOP 2 Section': ['Pressure Indicator 5203A/B/C', 'Flow Transmitter 5203A/B/C', 'Flow Control Valve 5203A/B/C', 'Pressure Indicator 5204', 'Flow Transmitter 5204', 'Flow Control Valve 5204', 'Pressure Indicator 5205', 'Flow Transmitter 5205', 'Flow Control Valve 5205', 'Pressure Indicator 5206', 'Flow Transmitter 5206', 'Flow Control Valve 5206', 'Pressure Indicator 5207', 'Flow Transmitter 5207', 'Flow Control Valve 5207', 'Solenoid Valve 5211'], 'Finish Section': ['Pressure Indicator 5301','Motor 5101','Pressure Transmitter 5303','Pressure Indicator 5303','Pressure Transmitter 5305','Pressure Indicator 5305','Pressure Valve 5305','VFD G-5104','Gate Valve 5302','Gate Valve 5304','Temperature Transmitter 5301','Pressure Indicator 5306','Exchanger 5104','Motor 5104','Temperature Valve 5401','Temperature Transmitter 5401','Pressure Differential Transmitter 5401','Pressure Indicator 5401A/B'] } },
+                'cgu': { name: 'CGU Section', subsections: { 'Server': ['Server'], 'Software': ['Software'] } }
+            };
+
+            let plantDataWithAvailability = {};
+            let mockData = {};
+
+            function initializeAndResetData() {
+                plantDataWithAvailability = JSON.parse(JSON.stringify(plantStructure));
+                Object.keys(plantDataWithAvailability).forEach(key => {
+                    plantDataWithAvailability[key].allComponents = [];
+                    Object.keys(plantDataWithAvailability[key].subsections).forEach(subKey => {
+                        const components = plantDataWithAvailability[key].subsections[subKey];
+                        plantDataWithAvailability[key].subsections[subKey] = components.map(name => {
+                            let componentName = name;
+                            if (key === 'filling-lines' || key === 'bulk-lines') {
+                                componentName = `${subKey} ${name}`;
+                            }
+                            return { name: componentName, availability: 100.0 };
+                        });
+                        plantDataWithAvailability[key].allComponents.push(...plantDataWithAvailability[key].subsections[subKey]);
+                });
+            });
+            
+                mockData = {
+                    workOrders: { 'automated-warehouse': [], 'blending': [], 'filling-lines': [], 'bulk-lines': [], 'atg': [], 'ilgmu': [], 'cgu': [] },
+                    workOrderCounters: { 'automated-warehouse': 1000000, 'blending': 2000000, 'filling-lines': 3000000, 'bulk-lines': 4000000, 'atg': 5000000, 'ilgmu': 6000000, 'cgu': 7000000 },
+                    scheduledPMs: getDefaultPMs()
+                };
+            }
+            // #endregion
+
+            let navButtons, componentModal, modalTitle, modalComponentList, editModal, editModalTitle, editModalList, newComponentName, addComponentBtn, saveComponentsBtn, pmModal;
+
+            // --- MODAL & VIEW FUNCTIONS ---
+            window.closeComponentModal = () => { if(componentModal) componentModal.style.display = 'none'; };
+            window.closeEditModal = () => { if(editModal) editModal.style.display = 'none'; };
+            window.closePmModal = () => { if(pmModal) pmModal.style.display = 'none'; };
+            
+            window.openPmModal = () => {
+                const taskList = document.getElementById('pm-task-list');
+                taskList.innerHTML = ''; // Clear previous list
+                mockData.scheduledPMs.forEach((pm, index) => {
+                    const sectionName = plantDataWithAvailability[pm.sectionKey]?.name || 'Unknown Section';
+                    const isChecked = pm.status === 'Done';
+                    const taskHtml = `
+                        <div class="p-2 border rounded-md flex items-center justify-between hover:bg-gray-100">
+                            <div>
+                                <div class="font-semibold text-gray-800">${pm.description}</div>
+                                <div class="text-sm text-gray-500">${sectionName} - ${pm.equipment}</div>
+                            </div>
+                            <input type="checkbox" data-pm-index="${index}" class="h-5 w-5 rounded text-blue-600 focus:ring-blue-500 border-gray-300" ${isChecked ? 'checked' : ''}>
+                        </div>
+                    `;
+                    taskList.insertAdjacentHTML('beforeend', taskHtml);
+                });
+                pmModal.style.display = 'block';
+            };
+
+            window.openComponentModal = (sectionKey, subsectionName) => {
+                const components = plantDataWithAvailability[sectionKey]?.subsections[subsectionName];
+                if (!components) return;
+                modalTitle.textContent = `${subsectionName} - Component Health`;
+                modalComponentList.innerHTML = components.map(c => {
+                    let barColor = 'bg-green-500';
+                    if (c.availability < 98 && c.availability >= 95) barColor = 'bg-yellow-400';
+                    else if (c.availability < 95) barColor = 'bg-red-500';
+                    return `<div class="p-2 border-b">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="font-medium text-gray-700">${c.name}</span>
+                            <span class="font-bold text-sm">${c.availability.toFixed(1)}%</span>
+                        </div>
+                        <div class="w-full availability-bar-bg rounded-full h-2"><div class="${barColor} h-2 rounded-full" style="width: ${c.availability}%"></div></div>
+                    </div>`;
+                }).join('');
+                componentModal.style.display = 'block';
+            };
+            
+            window.openEditModal = (sectionKey, subKey) => {
+                editModal.dataset.sectionKey = sectionKey;
+                editModal.dataset.subKey = subKey;
+                editModalTitle.textContent = `Edit Components for: ${subKey}`;
+                const components = plantDataWithAvailability[sectionKey].subsections[subKey];
+                editModalList.innerHTML = components.map(comp => `
+                    <div class="flex items-center gap-2">
+                        <input type="text" value="${comp.name}" class="edit-component-input flex-grow w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm">
+                        <button class="delete-component-btn bg-red-500 text-white font-bold py-2 px-3 rounded-md hover:bg-red-600">&times;</button>
+                    </div>
+                `).join('');
+                editModal.style.display = 'block';
+            };
+            
+            function switchView(targetId) {
+                console.log('Switching to view:', targetId);
+                currentView = targetId;
+                const sections = document.querySelectorAll('.dashboard-section');
+                console.log('Found sections:', sections.length);
+                sections.forEach(section => {
+                    section.classList.add('hidden');
+                    console.log('Hiding section:', section.id);
+                });
+                const targetSection = document.getElementById(targetId);
+                console.log('Target section:', targetSection);
+                if (targetSection) {
+                    targetSection.classList.remove('hidden');
+                    console.log('Showing section:', targetId);
+                } else {
+                    console.error('Target section not found:', targetId);
+                }
+                navButtons.forEach(btn => {
+                    btn.classList.remove('active');
+                    if(btn.dataset.target === targetId) btn.classList.add('active');
+                });
+            }
+
+            // --- DATA MUTATION & STATE MANAGEMENT ---
+            function savePmStatus() {
+                const checkboxes = document.querySelectorAll('#pm-task-list input[type="checkbox"]');
+                checkboxes.forEach(cb => {
+                    const index = parseInt(cb.dataset.pmIndex, 10);
+                    if (!isNaN(index) && mockData.scheduledPMs[index]) {
+                        mockData.scheduledPMs[index].status = cb.checked ? 'Done' : 'Pending';
+                    }
+                });
+                saveDataToLocalStorage();
+                refreshAllUI();
+                closePmModal();
+            }
+
+            function updateWorkOrderStatus(woId, newStatus, sectionKey) {
+                const wo = mockData.workOrders[sectionKey].find(w => w.wo === parseInt(woId));
+                if (!wo) return;
+                const oldStatus = wo.status;
+                wo.status = newStatus;
+                
+                if (newStatus === 'In Progress' && !wo.startTime) wo.startTime = new Date();
+                
+                if (newStatus === 'Done' && !wo.finishTime) {
+                    wo.finishTime = new Date();
+                    if (!wo.startTime) wo.startTime = new Date(Date.now() - 60 * 60 * 1000); 
+                }
+                 if (oldStatus === 'Done' && newStatus !== 'Done') {
+                    wo.finishTime = null;
+                }
+                saveDataToLocalStorage();
+                refreshAllUI();
+                
+                // Update history immediately for better real-time updates
+                if (window.historyManager) {
+                    window.historyManager.updateWorkOrderStatus(woId, newStatus);
+                }
+                
+                // Also sync all work orders to ensure consistency
+                syncWorkOrdersWithHistory();
+            }
+
+            function updatePerformedWork(woId, sectionKey, text) {
+                const wo = mockData.workOrders[sectionKey].find(w => w.wo === parseInt(woId));
+                if (wo) {
+                    wo.performedWork = text;
+                    saveDataToLocalStorage();
+                }
+            }
+
+            function handleFormSubmit(event, sectionKey) {
+                event.preventDefault();
+                const form = event.target;
+                const eq = form.querySelector(`#${sectionKey}-eq`).value;
+                const desc = form.querySelector(`#${sectionKey}-desc`).value;
+                const priority = form.querySelector(`#${sectionKey}-priority`).value;
+                if (!eq || !desc) return;
+                
+                const newWoNumber = mockData.workOrderCounters[sectionKey]++;
+                const newWO = { wo: newWoNumber, priority, eq, desc, status: 'In Progress', startTime: new Date(), performedWork: '' };
+                
+                mockData.workOrders[sectionKey].unshift(newWO);
+                
+                saveDataToLocalStorage();
+                refreshAllUI();
+                syncWorkOrdersWithHistory(); // Sync with history
+                form.reset();
+            }
+
+            function saveComponentChanges() {
+                const sectionKey = editModal.dataset.sectionKey;
+                const subKey = editModal.dataset.subKey;
+                if (!sectionKey || !subKey) return;
+
+                const inputs = editModalList.querySelectorAll('.edit-component-input');
+                const newComponentList = [];
+                inputs.forEach(input => {
+                    if (input.value.trim() !== '') {
+                        const existingComp = plantDataWithAvailability[sectionKey].subsections[subKey].find(c => c.name === input.value);
+                        newComponentList.push(existingComp || { name: input.value.trim(), availability: 100.0 });
+                    }
+                });
+                plantDataWithAvailability[sectionKey].subsections[subKey] = newComponentList;
+                
+                plantDataWithAvailability[sectionKey].allComponents = [];
+                Object.keys(plantDataWithAvailability[sectionKey].subsections).forEach(sKey => {
+                    plantDataWithAvailability[sectionKey].allComponents.push(...plantDataWithAvailability[sectionKey].subsections[sKey]);
+                });
+
+                closeEditModal();
+                populateAllFormDropdowns();
+                refreshAllUI();
+                saveDataToLocalStorage();
+            }
+
+            function addNewComponentToModal() {
+                const name = newComponentName.value.trim();
+                if (name === '') return;
+                const newRow = `
+                    <div class="flex items-center gap-2">
+                        <input type="text" value="${name}" class="edit-component-input flex-grow w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm">
+                        <button class="delete-component-btn bg-red-500 text-white font-bold py-2 px-3 rounded-md hover:bg-red-600">&times;</button>
+                    </div>`;
+                editModalList.insertAdjacentHTML('beforeend', newRow);
+                newComponentName.value = '';
+            }
+
+            // --- MASTER REFRESH FUNCTION ---
+            function refreshAllUI() {
+                recalculateAllAvailabilities();
+                Object.keys(plantDataWithAvailability).forEach(key => {
+                    populateAvailabilityGrid(key);
+                    populateWOTable(`${key}-wo-table`, mockData.workOrders[key] || [], key);
+                });
+                populateCriticalWOTable();
+                updateOEE();
+                updatePmComplianceKpi();
+            }
+
+            // --- RENDERING & CALCULATION FUNCTIONS ---
+            function updatePmComplianceKpi() {
+                const pms = mockData.scheduledPMs || [];
+                const totalPMs = pms.length;
+                if (totalPMs === 0) {
+                    document.getElementById('kpi-pm').textContent = '100%';
+                    return;
+                }
+                const completedPMs = pms.filter(pm => pm.status === 'Done').length;
+                const compliance = (completedPMs / totalPMs) * 100;
+                document.getElementById('kpi-pm').textContent = `${compliance.toFixed(0)}%`;
+            }
+            
+            function populateAvailabilityGrid(sectionKey) {
+                const gridContainer = document.getElementById(`${sectionKey}-availability-grid`);
+                const subsections = plantDataWithAvailability[sectionKey].subsections;
+                if (!gridContainer || !subsections) return;
+                let gridHTML = '';
+                Object.keys(subsections).forEach(name => {
+                    const components = subsections[name];
+                    const avgAvailability = components.length > 0 ? components.reduce((sum, c) => sum + c.availability, 0) / components.length : 100;
+                    let barColor = 'bg-green-500';
+                    if (avgAvailability < 98 && avgAvailability >= 95) barColor = 'bg-yellow-400';
+                    else if (avgAvailability < 95) barColor = 'bg-red-500';
+                    gridHTML += `<div class="availability-item p-2 rounded-md border">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-sm font-medium text-gray-700">${name}</span>
+                            <div>
+                                <span class="text-sm font-bold mr-2">${avgAvailability.toFixed(1)}%</span>
+                                <button onclick="openEditModal('${sectionKey}', '${name}')" class="text-xs bg-gray-200 hover:bg-gray-300 text-gray-600 font-semibold py-1 px-2 rounded">Edit</button>
+                            </div>
+                        </div>
+                        <div class="w-full availability-bar-bg rounded-full h-2.5"><div class="${barColor} h-2.5 rounded-full" style="width: ${avgAvailability}%" onclick="openComponentModal('${sectionKey}', '${name}')"></div></div>
+                    </div>`;
+                });
+                gridContainer.innerHTML = gridHTML;
+            }
+
+            function populateWOTable(tableId, data, sectionKey) {
+                const table = document.getElementById(tableId);
+                if (!table) return;
+                const header = `<thead class="bg-gray-100"><tr><th class="p-3 w-1/12">WO#</th><th class="p-3 w-3/12">Equipment</th><th class="p-3 w-3/12">Description</th><th class="p-3 w-3/12">Work Performed</th><th class="p-3">Start</th><th class="p-3">Finish</th><th class="p-3">Status</th></tr></thead>`;
+                let body = data.map(wo => {
+                    const statuses = ['New', 'In Progress', 'Done'];
+                    const options = statuses.map(s => `<option value="${s}" ${s === wo.status ? 'selected' : ''}>${s}</option>`).join('');
+                    return `<tr class="border-b">
+                                <td class="p-3 font-medium">${wo.wo}</td><td class="p-3">${wo.eq}</td><td class="p-3">${wo.desc}</td>
+                                <td class="p-3"><textarea class="wo-textarea performed-work-input" data-wo-id="${wo.wo}" data-section="${sectionKey}" rows="2">${wo.performedWork}</textarea></td>
+                                <td class="p-3">${wo.startTime ? new Date(wo.startTime).toLocaleTimeString() : '---'}</td>
+                                <td class="p-3">${wo.finishTime ? new Date(wo.finishTime).toLocaleTimeString() : '---'}</td>
+                                <td class="p-3"><select data-wo-id="${wo.wo}" data-section="${sectionKey}" class="status-select bg-white border border-gray-300 rounded-md shadow-sm p-1">${options}</select></td>
+                            </tr>`;
+                }).join('');
+                if (data.length === 0) body = '<tr><td colspan="7" class="p-4 text-center text-gray-500">No active work orders.</td></tr>';
+                table.innerHTML = header + `<tbody>${body}</tbody>`;
+            }
+            
+            function populateCriticalWOTable() {
+                const allWOs = Object.values(mockData.workOrders).flat();
+                const criticalWOs = allWOs.filter(wo => (wo.priority === 'High' || wo.priority === 'Emergency') && wo.status !== 'Done');
+                const tableBody = document.getElementById('critical-wo-table');
+                tableBody.innerHTML = criticalWOs.map(wo => {
+                     const sectionKey = Object.keys(mockData.workOrders).find(key => mockData.workOrders[key].includes(wo));
+                     const sectionName = sectionKey ? plantDataWithAvailability[sectionKey].name : 'Unknown';
+                     return `<tr class="border-b">
+                                <td class="p-3 font-medium">${wo.wo}</td>
+                                <td class="p-3"><span class="px-2 py-1 text-xs font-semibold text-white ${wo.priority === 'Emergency' ? 'bg-red-500' : 'bg-yellow-500'} rounded-full">${wo.priority}</span></td>
+                                <td class="p-3">${wo.eq}</td><td class="p-3">${sectionName}</td><td class="p-3">${wo.desc}</td>
+                                <td class="p-3">${wo.startTime ? new Date(wo.startTime).toLocaleTimeString() : '---'}</td>
+                                <td class="p-3">${wo.finishTime ? new Date(wo.finishTime).toLocaleTimeString() : '---'}</td>
+                                <td class="p-3">${wo.status}</td>
+                            </tr>`
+                }).join('');
+                if(criticalWOs.length === 0) tableBody.innerHTML = '<tr><td colspan="8" class="p-4 text-center text-gray-500">No active critical work orders.</td></tr>';
+                document.getElementById('critical-wo-kpi').textContent = criticalWOs.length;
+            }
+
+            function populateAllFormDropdowns() {
+                Object.keys(plantDataWithAvailability).forEach(key => {
+                    const select = document.getElementById(`${key}-eq`);
+                    if (!select) return;
+                    select.innerHTML = '<option value="">Select a component...</option>';
+                    const components = plantDataWithAvailability[key].allComponents;
+                    components.forEach(comp => {
+                        const option = document.createElement('option');
+                        option.value = comp.name;
+                        option.textContent = comp.name;
+                        select.appendChild(option);
+                    });
+                });
+            }
+
+            function recalculateAllAvailabilities() {
+                const allWOs = Object.values(mockData.workOrders).flat();
+                const now = new Date(); // Use a consistent 'now' for the entire calculation cycle
+
+                Object.keys(plantDataWithAvailability).forEach(sectionKey => {
+                    Object.keys(plantDataWithAvailability[sectionKey].subsections).forEach(subKey => {
+                        const components = plantDataWithAvailability[sectionKey].subsections[subKey];
+                        components.forEach(component => {
+                            let componentDowntime = 0;
+                            // Find all work orders for this component that have been started
+                            const relevantWOs = allWOs.filter(wo => wo.eq === component.name && wo.startTime);
+
+                            relevantWOs.forEach(wo => {
+                                const startTime = new Date(wo.startTime);
+                                let endTime;
+
+                                if (wo.status === 'Done' && wo.finishTime) {
+                                    // If WO is done, use the finish time
+                                    endTime = new Date(wo.finishTime);
+                                } else if (wo.status === 'In Progress') {
+                                    // If WO is in progress, calculate downtime up to the current moment
+                                    endTime = now;
+                                }
+
+                                // Only add to downtime if we have a valid start and end time
+                                if (endTime) {
+                                    componentDowntime += (endTime - startTime) / (1000 * 60); // Downtime in minutes
+                                }
+                            });
+                            
+                            const cappedDowntime = Math.min(componentDowntime, dailyRunningMinutes);
+                            const availability = ((dailyRunningMinutes - cappedDowntime) / dailyRunningMinutes) * 100;
+                            component.availability = Math.max(0, availability);
+                        });
+                    });
+                });
+            }
+
+            function updateOEE() {
+                let totalDowntimeMinutes = 0;
+                const allWOs = Object.values(mockData.workOrders).flat();
+                const now = new Date();
+                
+                allWOs.forEach(wo => {
+                    if (wo.startTime) {
+                        const startTime = new Date(wo.startTime);
+                        let endTime;
+                        if(wo.status === 'Done' && wo.finishTime) {
+                            endTime = new Date(wo.finishTime);
+                        } else if (wo.status === 'In Progress') {
+                            endTime = now;
+                        }
+                        
+                        if (endTime) {
+                            totalDowntimeMinutes += (endTime - startTime) / (1000 * 60);
+                        }
+                    }
+                });
+
+                const cappedTotalDowntime = Math.min(totalDowntimeMinutes, dailyRunningMinutes);
+                const runTime = dailyRunningMinutes - cappedTotalDowntime;
+                const availability = runTime / dailyRunningMinutes;
+                const finalAvailability = Math.max(0, availability);
+                const oeeScore = finalAvailability * OEE_PERFORMANCE * OEE_QUALITY;
+                document.getElementById('kpi-oee').textContent = `${(oeeScore * 100).toFixed(1)}%`;
+            }
+            
+            // --- DATA PERSISTENCE & UTILITIES ---
+            function resetData() {
+                if (confirm("Are you sure you want to reset indicators to 100%? This will only reset availability indicators, work orders will be preserved.")) {
+                    // Reset only availability indicators to 100%
+                    Object.keys(plantDataWithAvailability).forEach(sectionKey => {
+                        Object.keys(plantDataWithAvailability[sectionKey].subsections).forEach(subKey => {
+                            const components = plantDataWithAvailability[sectionKey].subsections[subKey];
+                            components.forEach(component => {
+                                component.availability = 100.0;
+                            });
+                        });
+                    });
+                    
+                    // Refresh UI to show 100% indicators
+                    refreshAllUI();
+                    saveDataToLocalStorage();
+                    alert("Indicators have been reset to 100%. Work orders have been preserved.");
+                }
+            }
+
+            function saveDataToLocalStorage() {
+                const dataToSave = { mockData, plantDataWithAvailability, dailyRunningMinutes };
+                localStorage.setItem('dashboardData', JSON.stringify(dataToSave));
+            }
+
+            // Function to save work orders to localStorage
+            function saveWorkOrders() {
+                try {
+                    localStorage.setItem('dashboardWorkOrders', JSON.stringify(mockData));
+                } catch (e) {
+                    console.log('Error saving work orders:', e);
+                }
+            }
+            
+            // Make saveWorkOrders globally accessible
+            window.saveWorkOrders = saveWorkOrders;
+            window.mockData = mockData;
+            
+            // Function to sync work orders with history
+            function syncWorkOrdersWithHistory() {
+                if (window.historyManager) {
+                    console.log('Syncing work orders with history...');
+                    // Convert work orders to history reports format
+                    const workOrderReports = [];
+                    Object.keys(mockData.workOrders).forEach(sectionKey => {
+                        mockData.workOrders[sectionKey].forEach(wo => {
+                            // Map status to history format
+                            let historyStatus = 'in-progress';
+                            if (wo.status === 'Done') {
+                                historyStatus = 'done';
+                            } else if (wo.status === 'New') {
+                                historyStatus = 'in-progress';
+                            }
+                            
+                            workOrderReports.push({
+                                id: wo.wo,
+                                title: `Work Order #${wo.wo}`,
+                                description: wo.desc,
+                                equipment: wo.eq,
+                                technician: 'System',
+                                priority: wo.priority.toLowerCase(),
+                                status: historyStatus,
+                                date: wo.startTime || new Date(),
+                                lastModified: wo.finishTime || wo.startTime || new Date(),
+                                type: 'work-order',
+                                section: sectionKey
+                            });
+                        });
+                    });
+                    
+                    console.log('Work order reports to sync:', workOrderReports.length);
+                    // Add work order reports to history
+                    window.historyManager.addWorkOrderReports(workOrderReports);
+                } else {
+                    console.warn('History manager not available');
+                }
+            }
+            
+            // Make syncWorkOrdersWithHistory globally accessible
+            window.syncWorkOrdersWithHistory = syncWorkOrdersWithHistory;
+
+            function loadDataFromLocalStorage() {
+                const savedData = localStorage.getItem('dashboardData');
+                if (savedData) {
+                    const parsedData = JSON.parse(savedData);
+                    mockData = parsedData.mockData;
+                    
+                    // FIX: Ensure scheduledPMs exists and is populated if it's missing from old saved data
+                    if (!mockData.scheduledPMs || mockData.scheduledPMs.length === 0) {
+                        mockData.scheduledPMs = getDefaultPMs();
+                    }
+
+                    Object.keys(mockData.workOrders).forEach(sectionKey => {
+                       if (mockData.workOrders[sectionKey]) {
+                            mockData.workOrders[sectionKey].forEach(wo => {
+                                if(wo.startTime) wo.startTime = new Date(wo.startTime);
+                                if(wo.finishTime) wo.finishTime = new Date(wo.finishTime);
+                            });
+                       }
+                    });
+
+                    plantDataWithAvailability = parsedData.plantDataWithAvailability;
+                    dailyRunningMinutes = parsedData.dailyRunningMinutes || 720;
+                    document.getElementById('running-hours').value = dailyRunningMinutes / 60;
+                    return true;
+                }
+                return false;
+            }
+
+            function exportToCSV() {
+                const allWOs = [];
+                Object.keys(mockData.workOrders).forEach(sectionKey => {
+                    const sectionName = plantDataWithAvailability[sectionKey].name;
+                    mockData.workOrders[sectionKey].forEach(wo => {
+                        allWOs.push({
+                            section: sectionName,
+                            wo: wo.wo,
+                            priority: wo.priority,
+                            equipment: wo.eq,
+                            description: wo.desc,
+                            status: wo.status,
+                            startTime: wo.startTime ? new Date(wo.startTime).toLocaleString() : 'N/A',
+                            finishTime: wo.finishTime ? new Date(wo.finishTime).toLocaleString() : 'N/A',
+                            performedWork: wo.performedWork
+                    });
+                });
+                });
+
+                if (allWOs.length === 0) {
+                    alert('No work orders to export.');
+                    return;
+                }
+
+                const headers = ['Section', 'WO #', 'Priority', 'Equipment', 'Description', 'Status', 'Start Time', 'Finish Time', 'Work Performed'];
+                
+                const sanitizeCell = (cell) => {
+                    let cellStr = String(cell).replace(/"/g, '""');
+                    if (cellStr.includes(',') || cellStr.includes('\n') || cellStr.includes('"')) {
+                        cellStr = `"${cellStr}"`;
+                    }
+                    return cellStr;
+                };
+
+                let csvString = headers.join(',') + '\n';
+                allWOs.forEach(row => {
+                    const rowData = [
+                        row.section, row.wo, row.priority, row.equipment, row.description,
+                        row.status, row.startTime, row.finishTime, row.performedWork
+                    ];
+                    csvString += rowData.map(sanitizeCell).join(',') + '\n';
+                });
+
+                const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.setAttribute("href", url);
+                link.setAttribute("download", "mex_site_work_orders.csv");
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            }
+
+            function importFromCSV(event) { alert('Import functionality is not yet enabled.'); }
+
+            function generateReport() {
+                const reportWindow = window.open('', '_blank');
+                let html = `
+                    <!DOCTYPE html>
+                    <html lang="en">
+                    <head>
+                        <meta charset="UTF-8">
+                        <title>Operations & Asset Health Report</title>
+                        <style>
+                            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; line-height: 1.6; color: #333; margin: 2rem; }
+                            h1, h2, h3 { color: #1a202c; border-bottom: 2px solid #e2e8f0; padding-bottom: 0.5rem; margin-top: 2rem; }
+                            h1 { font-size: 2.25rem; }
+                            h2 { font-size: 1.75rem; }
+                            h3 { font-size: 1.25rem; border-bottom: 1px solid #e2e8f0; }
+                            table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+                            th, td { border: 1px solid #cbd5e0; padding: 0.75rem; text-align: left; }
+                            th { background-color: #f7fafc; font-weight: 600; }
+                            tr:nth-child(even) { background-color: #f7fafc; }
+                            .kpi-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; text-align: center; }
+                            .kpi-item { background-color: #f7fafc; padding: 1.5rem; border-radius: 0.5rem; border: 1px solid #e2e8f0; }
+                            .kpi-title { font-size: 1rem; color: #718096; }
+                            .kpi-value { font-size: 2.5rem; font-weight: 700; color: #2d3748; }
+                            .availability-section { margin-top: 1rem; }
+                            .availability-item { display: flex; justify-content: space-between; padding: 0.5rem; border-bottom: 1px solid #e2e8f0; }
+                            .availability-item span:first-child { font-weight: 500; }
+                            @media print { body { margin: 0; font-size: 12px; } h1, h2, h3 { margin-top: 1.5rem; } .no-print { display: none; } }
+                        </style>
+                    </head>
+                    <body>
+                        <h1>MEX SITE - Operations & Asset Health Report</h1>
+                        <p>Generated on: ${new Date().toLocaleString()}</p>
+                        <h2>Key Performance Indicators</h2>
+                        <div class="kpi-container">
+                            <div class="kpi-item"><div class="kpi-title">OEE</div><div class="kpi-value">${document.getElementById('kpi-oee').textContent}</div></div>
+                            <div class="kpi-item"><div class="kpi-title">Critical Work Orders</div><div class="kpi-value">${document.getElementById('critical-wo-kpi').textContent}</div></div>
+                            <div class="kpi-item"><div class="kpi-title">PM Compliance</div><div class="kpi-value">${document.getElementById('kpi-pm').textContent}</div></div>
+                            <div class="kpi-item"><div class="kpi-title">Days Since LTI</div><div class="kpi-value">${document.getElementById('kpi-lti').textContent}</div></div>
+                        </div>
+                        <h2>System Availability</h2>`;
+                
+                Object.keys(plantDataWithAvailability).forEach(sectionKey => {
+                    const section = plantDataWithAvailability[sectionKey];
+                    html += `<h3>${section.name}</h3><div class="availability-section">`;
+                    Object.keys(section.subsections).forEach(subKey => {
+                        const components = section.subsections[subKey];
+                        const avgAvailability = components.length > 0 ? components.reduce((sum, c) => sum + c.availability, 0) / components.length : 100;
+                        html += `<div class="availability-item"><span>${subKey}</span><span>${avgAvailability.toFixed(2)}%</span></div>`;
+                    });
+                    html += `</div>`;
+                });
+
+                const allWOs = Object.values(mockData.workOrders).flat();
+                const activeWOs = allWOs.filter(wo => wo.status !== 'Done');
+                const completedWOs = allWOs.filter(wo => wo.status === 'Done');
+                const createWOTable = (wos, title) => {
+                    let tableHtml = `<h2>${title}</h2>`;
+                    if (wos.length === 0) { return tableHtml + '<p>No work orders to display.</p>'; }
+                    tableHtml += `<table><thead><tr><th>WO#</th><th>Priority</th><th>Equipment</th><th>Description</th><th>Start Time</th><th>Status</th></tr></thead><tbody>`;
+                    wos.forEach(wo => {
+                        tableHtml += `<tr><td>${wo.wo}</td><td>${wo.priority}</td><td>${wo.eq}</td><td>${wo.desc}</td><td>${wo.startTime ? new Date(wo.startTime).toLocaleString() : 'N/A'}</td><td>${wo.status}</td></tr>`;
+                    });
+                    tableHtml += '</tbody></table>';
+                    return tableHtml;
+                };
+                html += createWOTable(activeWOs, 'Active Work Orders');
+                html += createWOTable(completedWOs, 'Completed Work Orders');
+                html += `</body></html>`;
+                reportWindow.document.write(html);
+                reportWindow.document.close();
+                reportWindow.focus();
+            }
+
+            // --- INITIALIZATION SEQUENCE ---
+            console.log('Creating sections for:', Object.keys(plantStructure));
+            Object.keys(plantStructure).forEach(key => {
+                console.log('Creating section:', key);
+                createSectionHTML(key, plantStructure[key].name);
+            });
+            
+            // Debug: Check if sections were created
+            setTimeout(() => {
+                console.log('Available sections:', document.querySelectorAll('.dashboard-section').length);
+                document.querySelectorAll('.dashboard-section').forEach(section => {
+                    console.log('Section found:', section.id);
+                });
+                
+                // Add visible debug info
+                const debugDiv = document.createElement('div');
+                debugDiv.style.cssText = 'position: fixed; top: 10px; right: 10px; background: red; color: white; padding: 10px; z-index: 9999; font-family: monospace;';
+                debugDiv.textContent = `Sections: ${document.querySelectorAll('.dashboard-section').length}`;
+                document.body.appendChild(debugDiv);
+            }, 100);
+            
+            navButtons = document.querySelectorAll('.nav-btn');
+            componentModal = document.getElementById('component-modal');
+            modalTitle = document.getElementById('modal-title');
+            modalComponentList = document.getElementById('modal-component-list');
+            editModal = document.getElementById('edit-components-modal');
+            editModalTitle = document.getElementById('edit-modal-title');
+            editModalList = document.getElementById('edit-modal-list');
+            newComponentName = document.getElementById('new-component-name');
+            addComponentBtn = document.getElementById('add-component-btn');
+            saveComponentsBtn = document.getElementById('save-components-btn');
+            pmModal = document.getElementById('pm-modal');
+
+            if (!loadDataFromLocalStorage()) {
+                initializeAndResetData();
+            }
+            
+            populateAllFormDropdowns();
+            refreshAllUI();
+            
+            // Event Listeners
+            console.log('Setting up navigation event listeners for', navButtons.length, 'buttons');
+            navButtons.forEach(button => {
+                console.log('Button:', button.textContent.trim(), 'target:', button.dataset.target);
+                button.addEventListener('click', () => {
+                    console.log('Button clicked:', button.textContent.trim(), 'target:', button.dataset.target);
+                    switchView(button.dataset.target);
+                });
+            });
+            document.body.addEventListener('change', function(e) {
+                if (e.target.classList.contains('status-select')) {
+                    const woId = e.target.dataset.woId;
+                    const sectionKey = e.target.dataset.section;
+                    const newStatus = e.target.value;
+                    updateWorkOrderStatus(woId, newStatus, sectionKey);
+                }
+            });
+            document.body.addEventListener('input', function(e) {
+                if (e.target.classList.contains('performed-work-input')) {
+                    const woId = e.target.dataset.woId;
+                    const sectionKey = e.target.dataset.section;
+                    const text = e.target.value;
+                    updatePerformedWork(woId, sectionKey, text);
+                }
+            });
+            editModalList.addEventListener('click', function (e) {
+                if(e.target.classList.contains('delete-component-btn')) { e.target.parentElement.remove(); }
+            });
+            addComponentBtn.addEventListener('click', addNewComponentToModal);
+            saveComponentsBtn.addEventListener('click', saveComponentChanges);
+            document.getElementById('running-hours').addEventListener('change', function(e) {
+                const hours = parseFloat(e.target.value);
+                if (hours > 0 && hours <= 24) {
+                    dailyRunningMinutes = hours * 60;
+                    refreshAllUI();
+                    saveDataToLocalStorage();
+                }
+            });
+            Object.keys(plantStructure).forEach(key => {
+                document.getElementById(`${key}-form`).addEventListener('submit', (e) => handleFormSubmit(e, key));
+            });
+            document.getElementById('reset-data-btn').addEventListener('click', resetData);
+            document.getElementById('export-csv-btn').addEventListener('click', exportToCSV);
+            document.getElementById('import-csv-btn').addEventListener('click', () => document.getElementById('csv-file-input').click());
+            document.getElementById('csv-file-input').addEventListener('change', importFromCSV);
+            document.getElementById('generate-report-btn').addEventListener('click', generateReport);
+            document.getElementById('manage-pm-btn').addEventListener('click', openPmModal);
+            document.getElementById('save-pm-btn').addEventListener('click', savePmStatus);
+            
+            // Test motion button event listener
+            document.getElementById('testMotion')?.addEventListener('click', () => {
+                console.log('Testing motion background...');
+                if (window.motionEffects) {
+                    console.log('Motion effects object:', window.motionEffects);
+                    console.log('Motion background:', window.motionEffects.motionBackground);
+                    console.log('Layers:', window.motionEffects.layers);
+                    console.log('Particles:', window.motionEffects.particles);
+                    console.log('Floating geometric shapes:', window.motionEffects.floatingShapes);
+                    
+                    // Force recreate motion background
+                    if (window.motionEffects.motionBackground) {
+                        window.motionEffects.motionBackground.remove();
+                    }
+                    window.motionEffects.createMotionBackground();
+                } else {
+                    console.log('Motion effects not initialized, creating fallback...');
+                    createFallbackShapes();
+                }
+            });
+            
+            // Periodically refresh the UI to update times for 'In Progress' WOs
+            setInterval(refreshAllUI, 30000); // Refresh every 30 seconds
+
+            switchView('overview');
+            
+            // Initialize enhanced animations and effects
+            setTimeout(() => {
+                // Add page transition effects
+                document.querySelectorAll('.dashboard-section').forEach(section => {
+                    section.classList.add('page-transition');
+                });
+                
+                // Initialize motion effects if available
+                if (window.motionEffects) {
+                    window.motionEffects.triggerPageTransition();
+                    
+                    // Add shimmer loading effect to KPI cards
+                    document.querySelectorAll('.kpi-card').forEach(card => {
+                        window.motionEffects.addShimmerLoading(card);
+                    });
+                }
+                
+                // Sync work orders with history after history manager is initialized
+                setTimeout(() => {
+                    if (window.syncWorkOrdersWithHistory) {
+                        window.syncWorkOrdersWithHistory();
+                    }
+                }, 500);
+                
+                // Show test button in development
+                if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                    document.getElementById('testMotion').style.display = 'flex';
+                }
+            }, 100);
+        });
+    </script>
+    
+    <!-- UI Enhancement Scripts -->
+    <script src="assets/js/motion-effects.js"></script>
+    <script src="assets/js/history.js"></script>
+    
+    <!-- Interactive geometric shapes and lines -->
+    <div class="geometric-shapes">
+        <!-- Floating geometric circles -->
+        <div class="floating-geometric"></div>
+        <div class="floating-geometric"></div>
+        <div class="floating-geometric"></div>
+        <div class="floating-geometric"></div>
+        
+        <!-- Animated flowing lines -->
+        <div class="animated-line"></div>
+        <div class="animated-line"></div>
+        <div class="animated-line"></div>
+        <div class="animated-line"></div>
+        <div class="animated-line"></div>
+        <div class="animated-line"></div>
+    </div>
+    
+    <!-- Fallback icons container -->
+    <div id="fallback-icons" class="fixed inset-0 pointer-events-none z-[-1]"></div>
+    
+    <script>
+        // Fallback to create floating icons if motion effects don't work
+        setTimeout(() => {
+            if (!window.motionEffects || !window.motionEffects.floatingShapes) {
+                console.log('Motion effects not working, creating fallback shapes...');
+                createFallbackShapes();
+            }
+        }, 2000);
+        
+        function createFallbackShapes() {
+            const fallbackContainer = document.getElementById('fallback-icons');
+            if (!fallbackContainer) return;
+            
+            for (let i = 0; i < 15; i++) {
+                const shape = document.createElement('div');
+                const shapeType = Math.floor(Math.random() * 4);
+                const size = 20 + Math.random() * 60;
+                const colors = ['rgba(59, 130, 246, 0.3)', 'rgba(16, 185, 129, 0.3)', 'rgba(245, 158, 11, 0.3)', 'rgba(239, 68, 68, 0.3)'];
+                const color = colors[Math.floor(Math.random() * colors.length)];
+                
+                let shapeStyles = `
+                    position: absolute;
+                    left: ${Math.random() * 100}%;
+                    top: ${Math.random() * 100}%;
+                    pointer-events: none;
+                    animation: geometricFloat ${20 + Math.random() * 15}s ease-in-out infinite alternate;
+                    animation-delay: ${Math.random() * 10}s;
+                    opacity: 0.4;
+                `;
+                
+                if (shapeType === 0) {
+                    shapeStyles += `
+                        width: ${size}px;
+                        height: ${size}px;
+                        border-radius: 50%;
+                        border: 2px solid ${color};
+                        background: transparent;
+                    `;
+                } else if (shapeType === 1) {
+                    shapeStyles += `
+                        width: ${size}px;
+                        height: ${size}px;
+                        border: 2px solid ${color};
+                        background: transparent;
+                        transform: rotate(${Math.random() * 45}deg);
+                    `;
+                } else if (shapeType === 2) {
+                    shapeStyles += `
+                        width: 0;
+                        height: 0;
+                        border-left: ${size/2}px solid transparent;
+                        border-right: ${size/2}px solid transparent;
+                        border-bottom: ${size}px solid ${color};
+                        background: transparent;
+                    `;
+                } else {
+                    shapeStyles += `
+                        width: ${size * 2}px;
+                        height: 2px;
+                        background: linear-gradient(90deg, transparent, ${color}, transparent);
+                        transform: rotate(${Math.random() * 360}deg);
+                    `;
+                }
+                
+                shape.style.cssText = shapeStyles;
+                fallbackContainer.appendChild(shape);
+            }
+        }
+    </script>
+</body>
+</html>
